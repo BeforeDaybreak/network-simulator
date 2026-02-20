@@ -3,6 +3,7 @@ import { useStore } from '../../store';
 
 export default function PacketLog() {
   const logs = useStore((s) => s.logs);
+  const t = useStore((s) => s.t);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -18,7 +19,7 @@ export default function PacketLog() {
           key={log.id}
           className="text-xs font-mono px-2 py-1 rounded bg-gray-800/50"
         >
-          <span className="text-gray-500 mr-2">t={log.time}</span>
+          <span className="text-gray-500 mr-2">{t['log.timePrefix']}{log.time}</span>
           <span
             className={
               log.message.includes('[ARP]')

@@ -1,9 +1,10 @@
-import { useRef, useCallback, useState } from 'react';
+import { useRef, useCallback, useState, useEffect } from 'react';
 import { useStore } from '../../store';
 import type { DeviceType } from '../../types/network';
 import DeviceNode from './DeviceNode';
 import ConnectionEdge from './ConnectionEdge';
 import PacketAnimation from './PacketAnimation';
+import CanvasToolbar from './CanvasToolbar';
 
 export default function NetworkCanvas() {
   const nodes = useStore((s) => s.nodes);
@@ -14,11 +15,36 @@ export default function NetworkCanvas() {
   const selectEdge = useStore((s) => s.selectEdge);
   const connectionMode = useStore((s) => s.connectionMode);
   const setConnectionSource = useStore((s) => s.setConnectionSource);
+  const canvasTool = useStore((s) => s.canvasTool);
+  const setCanvasTool = useStore((s) => s.setCanvasTool);
 
   const svgRef = useRef<SVGSVGElement>(null);
   const [viewBox, setViewBox] = useState({ x: 0, y: 0, w: 2000, h: 1500 });
   const panning = useRef(false);
   const panStart = useRef({ x: 0, y: 0, vx: 0, vy: 0 });
+
+  const zoom = useCallback((factor: number) => {
+    setViewBox((vb) => {
+      const cx = vb.x + vb.w / 2;
+      const cy = vb.y + vb.h / 2;
+      const nw = vb.w * factor;
+      const nh = vb.h * factor;
+      return { x: cx - nw / 2, y: cy - nh / 2, w: nw, h: nh };
+    });
+  }, []);
+
+  // Keyboard shortcuts — use e.code for IME-safe physical key detection
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.code === 'KeyV') setCanvasTool('select');
+      else if (e.code === 'KeyG') setCanvasTool('pan');
+      else if (e.code === 'BracketLeft') zoom(0.8);
+      else if (e.code === 'BracketRight') zoom(1.25);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [setCanvasTool, zoom]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -44,15 +70,17 @@ export default function NetworkCanvas() {
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
-    const zoomFactor = e.deltaY > 0 ? 1.1 : 0.9;
-    setViewBox((vb) => {
-      const cx = vb.x + vb.w / 2;
-      const cy = vb.y + vb.h / 2;
-      const nw = vb.w * zoomFactor;
-      const nh = vb.h * zoomFactor;
-      return { x: cx - nw / 2, y: cy - nh / 2, w: nw, h: nh };
-    });
-  }, []);
+    zoom(e.deltaY > 0 ? 1.1 : 0.9);
+  }, [zoom]);
+
+  const startPan = useCallback(
+    (e: React.PointerEvent) => {
+      panning.current = true;
+      panStart.current = { x: e.clientX, y: e.clientY, vx: viewBox.x, vy: viewBox.y };
+      (e.target as SVGElement).setPointerCapture(e.pointerId);
+    },
+    [viewBox.x, viewBox.y]
+  );
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
@@ -60,15 +88,21 @@ export default function NetworkCanvas() {
         setConnectionSource(null);
         return;
       }
+
+      // Pan mode: always pan regardless of target
+      if (canvasTool === 'pan') {
+        startPan(e);
+        return;
+      }
+
+      // Select mode: only pan when clicking background
       if (e.target === svgRef.current || (e.target as SVGElement).tagName === 'rect' && (e.target as SVGElement).dataset.bg) {
         selectNode(null);
         selectEdge(null);
-        panning.current = true;
-        panStart.current = { x: e.clientX, y: e.clientY, vx: viewBox.x, vy: viewBox.y };
-        (e.target as SVGElement).setPointerCapture(e.pointerId);
+        startPan(e);
       }
     },
-    [connectionMode, viewBox.x, viewBox.y, selectNode, selectEdge, setConnectionSource]
+    [connectionMode, canvasTool, startPan, selectNode, selectEdge, setConnectionSource]
   );
 
   const handlePointerMove = useCallback(
@@ -93,12 +127,18 @@ export default function NetworkCanvas() {
     panning.current = false;
   }, []);
 
+  const svgCursor =
+    connectionMode ? 'crosshair' :
+    canvasTool === 'pan' ? 'grab' :
+    'default';
+
   return (
-    <div className="flex-1 bg-gray-950 overflow-hidden" onDragOver={handleDragOver} onDrop={handleDrop}>
+    <div className="relative flex-1 bg-gray-950 overflow-hidden" onDragOver={handleDragOver} onDrop={handleDrop}>
       <svg
         ref={svgRef}
         className="w-full h-full"
         viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`}
+        style={{ cursor: svgCursor }}
         onWheel={handleWheel}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -134,6 +174,8 @@ export default function NetworkCanvas() {
           <PacketAnimation key={pkt.id} animatedPacket={pkt} />
         ))}
       </svg>
+
+      <CanvasToolbar onZoomIn={() => zoom(0.8)} onZoomOut={() => zoom(1.25)} />
     </div>
   );
 }

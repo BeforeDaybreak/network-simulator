@@ -1,11 +1,27 @@
+import { useState } from 'react';
 import { DEVICE_DEFAULTS, type DeviceType } from '../../types/network';
 import { useStore } from '../../store';
+import type { Translations } from '../../i18n';
 
 const deviceTypes: DeviceType[] = ['host', 'switch', 'router', 'dns-server', 'web-server'];
+
+const DEVICE_TYPE_KEYS: Record<DeviceType, keyof Translations> = {
+  'host': 'device.host',
+  'switch': 'device.switch',
+  'router': 'device.router',
+  'dns-server': 'device.dnsServer',
+  'web-server': 'device.webServer',
+};
+
+const HELP_STEP_KEYS: (keyof Translations)[] = [
+  'help.step1', 'help.step2', 'help.step3', 'help.step4', 'help.step5',
+];
 
 export default function DevicePalette() {
   const connectionMode = useStore((s) => s.connectionMode);
   const setConnectionMode = useStore((s) => s.setConnectionMode);
+  const t = useStore((s) => s.t);
+  const [showHelp, setShowHelp] = useState(false);
 
   const handleDragStart = (e: React.DragEvent, type: DeviceType) => {
     e.dataTransfer.setData('deviceType', type);
@@ -14,7 +30,24 @@ export default function DevicePalette() {
 
   return (
     <div className="w-52 bg-gray-900 border-r border-gray-700 flex flex-col p-3 gap-3">
-      <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Devices</h2>
+      <button
+        onClick={() => setShowHelp(!showHelp)}
+        className="text-left text-sm font-semibold text-blue-400 hover:text-blue-300 transition-colors"
+      >
+        {showHelp ? `▾ ${t['help.title']}` : `▸ ${t['help.title']}`}
+      </button>
+
+      {showHelp && (
+        <div className="bg-gray-800 border border-gray-700 rounded-lg p-3">
+          <ol className="text-xs text-gray-400 space-y-1.5 list-decimal list-inside">
+            {HELP_STEP_KEYS.map((key) => (
+              <li key={key} className="leading-relaxed">{t[key]}</li>
+            ))}
+          </ol>
+        </div>
+      )}
+
+      <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">{t['devices.heading']}</h2>
 
       <div className="flex flex-col gap-2">
         {deviceTypes.map((type) => {
@@ -34,7 +67,7 @@ export default function DevicePalette() {
               >
                 {d.icon}
               </div>
-              <span className="text-sm text-gray-200">{d.label}</span>
+              <span className="text-sm text-gray-200">{t[DEVICE_TYPE_KEYS[type]]}</span>
             </div>
           );
         })}
@@ -49,7 +82,7 @@ export default function DevicePalette() {
               : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700'
           }`}
         >
-          {connectionMode ? '🔗 Connecting...' : '🔗 Connect Mode'}
+          {connectionMode ? `🔗 ${t['devices.connecting']}` : `🔗 ${t['devices.connectMode']}`}
         </button>
       </div>
     </div>

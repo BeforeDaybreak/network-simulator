@@ -29,6 +29,7 @@ export default function DeviceNode({ node, svgRef }: Props) {
   const connectionSourceId = useStore((s) => s.connectionSourceId);
   const setConnectionSource = useStore((s) => s.setConnectionSource);
   const addEdge = useStore((s) => s.addEdge);
+  const canvasTool = useStore((s) => s.canvasTool);
 
   const dragging = useRef(false);
   const offset = useRef({ x: 0, y: 0 });
@@ -40,6 +41,7 @@ export default function DeviceNode({ node, svgRef }: Props) {
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       if (connectionMode) {
+        e.stopPropagation();
         if (!connectionSourceId) {
           setConnectionSource(node.id);
         } else if (connectionSourceId !== node.id) {
@@ -48,6 +50,9 @@ export default function DeviceNode({ node, svgRef }: Props) {
         }
         return;
       }
+
+      // In pan mode, let the event bubble up to the canvas for panning
+      if (canvasTool === 'pan') return;
 
       e.stopPropagation();
       dragging.current = true;
@@ -58,7 +63,7 @@ export default function DeviceNode({ node, svgRef }: Props) {
       (e.target as SVGElement).setPointerCapture(e.pointerId);
       selectNode(node.id);
     },
-    [connectionMode, connectionSourceId, node.id, node.x, node.y, svgRef, selectNode, setConnectionSource, addEdge]
+    [connectionMode, connectionSourceId, canvasTool, node.id, node.x, node.y, svgRef, selectNode, setConnectionSource, addEdge]
   );
 
   const handlePointerMove = useCallback(
@@ -80,7 +85,7 @@ export default function DeviceNode({ node, svgRef }: Props) {
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      style={{ cursor: connectionMode ? 'crosshair' : 'grab' }}
+      style={{ cursor: connectionMode ? 'crosshair' : canvasTool === 'pan' ? 'grab' : 'pointer' }}
     >
       <rect
         width={NODE_WIDTH}

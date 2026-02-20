@@ -89,7 +89,7 @@ export type SimState = 'idle' | 'running' | 'paused' | 'stepping';
 export type DifficultyLevel = 'beginner' | 'intermediate' | 'advanced';
 
 export const DEVICE_DEFAULTS: Record<DeviceType, { label: string; color: string; icon: string }> = {
-  host:        { label: 'PC',         color: '#3B82F6', icon: '💻' },
+  host:        { label: 'Host',       color: '#3B82F6', icon: '💻' },
   switch:      { label: 'Switch',     color: '#10B981', icon: '🔀' },
   router:      { label: 'Router',     color: '#F59E0B', icon: '🌐' },
   'dns-server': { label: 'DNS Server', color: '#8B5CF6', icon: '📋' },
